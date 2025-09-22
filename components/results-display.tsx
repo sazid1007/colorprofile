@@ -8,7 +8,7 @@ import { RotateCcw, CheckCircle, AlertCircle, Users, MessageCircle, TrendingUp }
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import type { PersonalityType } from "@/lib/quiz-data"
-import { recordQuizResult, getMatchPercentage } from "@/lib/quiz-statistics"
+import { recordQuizResult, getMatchPercentage, getGlobalPercentage } from "@/lib/quiz-statistics"
 
 interface ResultsDisplayProps {
   username: string
@@ -21,6 +21,8 @@ export function ResultsDisplay({ username, result, onRetakeQuiz, onBackToHome }:
   const [showResults, setShowResults] = useState(false)
   const [currentRevealStep, setCurrentRevealStep] = useState(0)
   const [matchPercentage, setMatchPercentage] = useState(0)
+  const [globalPercentage, setGlobalPercentage] = useState(0)
+  const [showColorAnimation, setShowColorAnimation] = useState(false)
 
   useEffect(() => {
     // Record the quiz result
@@ -29,6 +31,10 @@ export function ResultsDisplay({ username, result, onRetakeQuiz, onBackToHome }:
     // Get match percentage
     const percentage = getMatchPercentage(result.color)
     setMatchPercentage(percentage)
+
+    // Get global percentage
+    const globalPct = getGlobalPercentage(result.color)
+    setGlobalPercentage(globalPct)
 
     // Start progressive reveal after initial loading
     const timer = setTimeout(() => {
@@ -39,12 +45,18 @@ export function ResultsDisplay({ username, result, onRetakeQuiz, onBackToHome }:
         () => setCurrentRevealStep(2), // Strengths
         () => setCurrentRevealStep(3), // Work style & communication
         () => setCurrentRevealStep(4), // Growth areas
-        () => setCurrentRevealStep(5), // Color reveal
-        () => setCurrentRevealStep(6), // Full results
+        () => setCurrentRevealStep(5), // Color reveal preparation
+        () => {
+          setShowColorAnimation(true) // Start color animation
+          setTimeout(() => {
+            setShowColorAnimation(false) // End color animation
+            setCurrentRevealStep(6) // Full results after animation
+          }, 2000) // Animation duration
+        },
       ]
 
       revealSteps.forEach((step, index) => {
-        setTimeout(step, (index + 1) * 2000) // 2 second intervals
+        setTimeout(step, (index + 1) * 500) // /.5 second intervals
       })
     }, 1500)
 
@@ -125,6 +137,61 @@ export function ResultsDisplay({ username, result, onRetakeQuiz, onBackToHome }:
     "Compiling your complete profile..."
   ]
 
+  // Color animation screen
+  if (showColorAnimation && currentRevealStep < 6) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 overflow-hidden">
+        <div className="text-center space-y-6 max-w-sm relative">
+          {/* Expanding color circle */}
+          <div className="relative flex items-center justify-center">
+            <div
+              className={`absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full ${colorClasses.bg} animate-ping opacity-20`}
+              style={{ animationDuration: '1s', animationIterationCount: '2' }}
+            ></div>
+            <div
+              className={`absolute w-32 h-32 sm:w-40 sm:h-40 rounded-full ${colorClasses.bg} animate-pulse opacity-10`}
+              style={{ animationDuration: '0.8s' }}
+            ></div>
+            <div
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full ${colorClasses.bg} flex items-center justify-center shadow-2xl transform animate-bounce`}
+              style={{ animationDuration: '0.6s', animationIterationCount: '3' }}
+            >
+              <span className="text-2xl sm:text-3xl font-bold text-white animate-pulse">
+                {result.name}
+              </span>
+            </div>
+          </div>
+          
+          {/* Zoom in text reveal */}
+          <div className="space-y-2 animate-in fade-in-50 zoom-in-50 duration-1000 delay-500">
+            <h2 className={`text-2xl sm:text-3xl font-bold ${colorClasses.text} animate-in slide-in-from-bottom-4 duration-700 delay-700`}>
+              You are {result.name}!
+            </h2>
+            <p className="text-lg sm:text-xl text-muted-foreground animate-in slide-in-from-bottom-4 duration-700 delay-1000">
+              {result.title}
+            </p>
+          </div>
+
+          {/* Particle effect overlay */}
+          <div className="absolute inset-0 pointer-events-none">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className={`absolute w-2 h-2 ${colorClasses.bg} rounded-full animate-ping opacity-30`}
+                style={{
+                  left: `${20 + i * 10}%`,
+                  top: `${30 + (i % 2) * 40}%`,
+                  animationDelay: `${i * 0.1}s`,
+                  animationDuration: '1.5s'
+                }}
+              ></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (currentRevealStep < 6) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
@@ -134,7 +201,7 @@ export function ResultsDisplay({ username, result, onRetakeQuiz, onBackToHome }:
               className={`w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-full ${colorClasses.bg} flex items-center justify-center animate-pulse`}
             >
               <span className="text-2xl sm:text-3xl font-bold text-white">
-                {currentRevealStep >= 5 ? result.name : "?"}
+                ?
               </span>
             </div>
             <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-current animate-spin opacity-30"></div>
@@ -142,7 +209,7 @@ export function ResultsDisplay({ username, result, onRetakeQuiz, onBackToHome }:
           <div className="space-y-2">
             <h2 className="text-lg sm:text-xl font-semibold">{revealMessages[currentRevealStep]}</h2>
             <p className="text-sm sm:text-base text-muted-foreground">
-              {currentRevealStep >= 5 ? `You are ${result.name}!` : "Building your personality profile"}
+              Building your personality profile
             </p>
           </div>
         </div>
@@ -171,10 +238,13 @@ export function ResultsDisplay({ username, result, onRetakeQuiz, onBackToHome }:
           </p>
 
           {/* Statistics */}
-          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100">
-            <div className="flex items-center justify-center gap-2 text-sm font-medium text-gray-700">
-              <TrendingUp className="w-4 h-4" />
-              <span>You match {matchPercentage}% of people who took this quiz!</span>
+          <div className="mt-6">
+            {/* Global Statistics */}
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100">
+              <div className="flex items-center justify-center gap-2 text-sm font-medium text-gray-700">
+                <TrendingUp className="w-4 h-4" />
+                <span>Wow! {globalPercentage}% of people share your personality type globally.</span>
+              </div>
             </div>
           </div>
         </div>

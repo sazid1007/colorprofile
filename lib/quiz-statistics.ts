@@ -11,6 +11,14 @@ export interface QuizStatistics {
   }
 }
 
+// Global personality color distribution based on Thomas Erikson's research
+export const GLOBAL_COLOR_PERCENTAGES = {
+  red: 26,    // Dominant - Leadership focused
+  yellow: 27, // Inspiring - Social and enthusiastic  
+  green: 24,  // Stable - Supportive and steady
+  blue: 23    // Analytical - Detail-oriented and systematic
+}
+
 export function getQuizStatistics(): QuizStatistics {
   if (typeof window === 'undefined') {
     return { totalQuizzes: 0, colorCounts: { red: 0, yellow: 0, green: 0, blue: 0 } }
@@ -46,4 +54,8 @@ export function getMatchPercentage(userColor: 'red' | 'yellow' | 'green' | 'blue
   if (stats.totalQuizzes === 0) return 0
 
   return Math.round((stats.colorCounts[userColor] / stats.totalQuizzes) * 100)
+}
+
+export function getGlobalPercentage(color: 'red' | 'yellow' | 'green' | 'blue'): number {
+  return GLOBAL_COLOR_PERCENTAGES[color]
 }
